@@ -1,17 +1,37 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import './index.css';
-import App from './App';
-import reportWebVitals from './reportWebVitals';
+app.get('/api/news', async (req, res) => {
+  let articles = [];
+  
+  for (let feedUrl of rssFeeds) {
+      try {
+          const feed = await parser.parseURL(feedUrl);
+          feed.items.forEach(item => {
+              // Skip articles with non-English titles or summaries
+              if (!item.title || !item.title.match(/[a-zA-Z]/)) return; // Ensure title contains English letters
+              if (item.contentSnippet && !item.contentSnippet.match(/[a-zA-Z]/)) return; // Ensure summary contains English letters
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+              // Extract image URL from content or enclosure
+              let imageUrl = '';
+              if (item.enclosure && item.enclosure.url) {
+                  imageUrl = item.enclosure.url; // Use enclosure for images
+              } else if (item.content) {
+                  const imgMatch = item.content.match(/<img[^>]+src="([^">]+)"/);
+                  if (imgMatch) {
+                      imageUrl = imgMatch[1]; // Extract image URL from content
+                  }
+              }
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
-reportWebVitals();
+              articles.push({
+                  title: item.title,
+                  link: item.link,
+                  published: item.pubDate,
+                  summary: item.contentSnippet,
+                  imageUrl: imageUrl // Add image URL to the article
+              });
+          });
+      } catch (error) {
+          console.error(`Failed to fetch feed: ${feedUrl}`, error);
+      }
+  }
+  
+  res.json(articles);
+});
